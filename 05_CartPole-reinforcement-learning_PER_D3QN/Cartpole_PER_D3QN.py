@@ -10,7 +10,6 @@ from keras.optimizers import Adam, RMSprop
 from keras import backend as K
 from PER import *
 
-
 def OurModel(input_shape, action_space, dueling):
     X_input = Input(input_shape)
     X = X_input
@@ -76,6 +75,7 @@ class DQNAgent:
         self.TAU = 0.1 # target network soft update hyperparameter
 
         self.Save_Path = 'Models'
+        if not os.path.exists(self.Save_Path): os.makedirs(self.Save_Path)
         self.scores, self.episodes, self.average = [], [], []
 
         self.Model_name = os.path.join(self.Save_Path, self.env_name+"_e_greedy.h5")
