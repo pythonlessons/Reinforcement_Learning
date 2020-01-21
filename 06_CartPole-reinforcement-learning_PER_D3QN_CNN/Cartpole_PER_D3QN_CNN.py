@@ -1,5 +1,4 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 import random
 import gym
 import pylab
@@ -17,8 +16,8 @@ def OurModel(input_shape, action_space, dueling):
     X = X_input
     
     X = Conv2D(64, 5, strides=(3, 3),padding="valid", input_shape=input_shape, activation="relu", data_format="channels_first")(X)
-    X = Conv2D(64, 4, strides=(2, 2),padding="valid", input_shape=input_shape, activation="relu", data_format="channels_first")(X)
-    X = Conv2D(64, 3, strides=(1, 1),padding="valid", input_shape=input_shape, activation="relu", data_format="channels_first")(X)
+    X = Conv2D(64, 4, strides=(2, 2),padding="valid", activation="relu", data_format="channels_first")(X)
+    X = Conv2D(64, 3, strides=(1, 1),padding="valid", activation="relu", data_format="channels_first")(X)
     X = Flatten()(X)
     # 'Dense' is the basic form of a neural network layer
     # Input Layer of state size(4) and Hidden Layer with 512 nodes
