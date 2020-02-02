@@ -173,9 +173,11 @@ class DQNAgent:
                     # Q_max = max_a' Q_target(s', a')
                     target[i][action[i]] = reward[i] + self.gamma * (np.amax(target_next[i]))
 
-            if self.USE_PER:
-                absolute_errors = np.abs(target_old[i] - target[i])
-                self.MEMORY.batch_update(tree_idx, absolute_errors)
+        if self.USE_PER:
+            indices = np.arange(self.batch_size, dtype=np.int32)
+            absolute_errors = np.abs(target_old[indices, np.array(action)]-target[indices, np.array(action)])
+            # Update priority
+            self.MEMORY.batch_update(tree_idx, absolute_errors)
 
         # Train the Neural Network with batches
         self.model.fit(state, target, batch_size=self.batch_size, verbose=0)
@@ -245,6 +247,7 @@ class DQNAgent:
                         #self.save(self.Model_name)
                         break
                 self.replay()
+        self.env.close()
 
     def test(self):
         self.load(self.Model_name)
