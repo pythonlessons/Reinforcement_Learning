@@ -11,3 +11,5 @@
 5. [Prioritized Experience Replay (PER) D3QN tutorial](https://pylessons.com/CartPole-PER/)
 
 6. [D3QN PER with Convolutional Neural Networks tutorial](https://pylessons.com/CartPole-PER-CNN/)
+
+7. [A.I. learns to play Pong with DQN](https://pylessons.com/DQN-PONG/)
