@@ -13,3 +13,13 @@
 6. [D3QN PER with Convolutional Neural Networks tutorial](https://pylessons.com/CartPole-PER-CNN/)
 
 7. [A.I. learns to play Pong with DQN](https://pylessons.com/DQN-PONG/)
+
+8. Introduction to RL Policy Gradient (PG or REINFORCE)
+
+9. Introduction to RL Deep Deterministic Policy Gradient (DDPG)
+
+10. Introduction to RL Synchronous Advanced Actor Critic algorythm (A2C)
+
+11. Introduction to RL Asynchronous Advanced Actor Critic algorythm (A3C)
+
+11. Introduction to RL Proximal Policy Optimization algorythm (PPO)
