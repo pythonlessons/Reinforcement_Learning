@@ -18,7 +18,7 @@
 
 9. Introduction to RL Deep Deterministic Policy Gradient (DDPG)
 
-10. Introduction to RL Synchronous Advanced Actor Critic algorythm (A2C)
+10. Introduction to RL Advanced Actor Critic algorythm (A2C)
 
 11. Introduction to RL Asynchronous Advanced Actor Critic algorythm (A3C)
 
