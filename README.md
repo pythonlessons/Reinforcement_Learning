@@ -16,10 +16,8 @@
 
 8. Introduction to RL Policy Gradient (PG or REINFORCE)
 
-9. Introduction to RL Deep Deterministic Policy Gradient (DDPG)
+9. Introduction to RL Advanced Actor Critic algorythm (A2C)
 
-10. Introduction to RL Advanced Actor Critic algorythm (A2C)
-
-11. Introduction to RL Asynchronous Advanced Actor Critic algorythm (A3C)
+10. Introduction to RL Asynchronous Advanced Actor Critic algorythm (A3C)
 
 11. Introduction to RL Proximal Policy Optimization algorythm (PPO)
