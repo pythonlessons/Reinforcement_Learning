@@ -130,7 +130,7 @@ class PGAgent:
         return self.average[-1]
 
     def imshow(self, image, rem_step=0):
-        cv2.imshow("cartpole"+str(rem_step), image[rem_step,...])
+        cv2.imshow(self.Model_name+str(rem_step), image[rem_step,...])
         if cv2.waitKey(25) & 0xFF == ord("q"):
             cv2.destroyAllWindows()
             return
