@@ -61,7 +61,6 @@ class PGAgent:
         # Create Actor network model
         self.Actor = OurModel(input_shape=self.state_size, action_space = self.action_size, lr=self.lr)
 
-
     def remember(self, state, action, reward):
         # store episode actions to memory
         self.states.append(state)
@@ -69,7 +68,6 @@ class PGAgent:
         action_onehot[action] = 1
         self.actions.append(action_onehot)
         self.rewards.append(reward)
-
 
     def act(self, state):
         # Use the network to predict the next action to take, using the model
@@ -92,7 +90,6 @@ class PGAgent:
         discounted_r /= np.std(discounted_r) # divide by standard deviation
         return discounted_r
 
-                
     def replay(self):
         # reshape memory to appropriate shape for training
         states = np.vstack(self.states)
@@ -183,7 +180,7 @@ class PGAgent:
             state = self.reset()
             done, score, SAVING = False, 0, ''
             while not done:
-                self.env.render()
+                #self.env.render()
                 # Actor picks an action
                 action = self.act(state)
                 # Retrieve new state, reward, and whether the state is terminal
@@ -203,8 +200,7 @@ class PGAgent:
                     else:
                         SAVING = ""
                     print("episode: {}/{}, score: {}, average: {:.2f} {}".format(e, self.EPISODES, score, average, SAVING))
-                
-                    # train model
+
                     self.replay()
         
         # close environemnt when finish training
@@ -217,6 +213,7 @@ class PGAgent:
             done = False
             score = 0
             while not done:
+                self.env.render()
                 action = np.argmax(self.Actor.predict(state))
                 state, reward, done, _ = self.step(action)
                 score += reward
@@ -226,8 +223,9 @@ class PGAgent:
         self.env.close()
 
 if __name__ == "__main__":
-    env_name = 'Pong-v0'
-    #env_name = 'PongDeterministic-v4'
+    #env_name = 'Pong-v0'
+    env_name = 'PongDeterministic-v4'
     agent = PGAgent(env_name)
-    agent.run()
+    #agent.run()
+    agent.test('Models/PongDeterministic-v4_PG_2.5e-05.h5')
     #agent.test('Models/Pong-v0_PG_2.5e-05.h5')
