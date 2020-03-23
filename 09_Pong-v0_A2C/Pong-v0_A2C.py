@@ -218,7 +218,7 @@ class A2CAgent:
                     print("episode: {}/{}, score: {}, average: {:.2f} {}".format(e, self.EPISODES, score, average, SAVING))
 
                     self.replay()
-                    
+        # close environemnt when finish training
         self.env.close()
 
     def test(self, Actor_name, Critic_name):
