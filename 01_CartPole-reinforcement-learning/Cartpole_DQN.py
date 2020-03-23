@@ -1,3 +1,6 @@
+# Tutorial by www.pylessons.com
+# Tutorial written for - Tensorflow 1.15, Keras 2.2.4
+
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import random
