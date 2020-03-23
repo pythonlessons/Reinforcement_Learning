@@ -183,7 +183,7 @@ class PGAgent:
             state = self.reset()
             done, score, SAVING = False, 0, ''
             while not done:
-                #self.env.render()
+                self.env.render()
                 # Actor picks an action
                 action = self.act(state)
                 # Retrieve new state, reward, and whether the state is terminal
@@ -203,9 +203,11 @@ class PGAgent:
                     else:
                         SAVING = ""
                     print("episode: {}/{}, score: {}, average: {:.2f} {}".format(e, self.EPISODES, score, average, SAVING))
-
+                
+                    # train model
                     self.replay()
-                    
+        
+        # close environemnt when finish training
         self.env.close()
 
     def test(self, Model_name):
@@ -227,5 +229,5 @@ if __name__ == "__main__":
     env_name = 'Pong-v0'
     #env_name = 'PongDeterministic-v4'
     agent = PGAgent(env_name)
-    #agent.run()
-    agent.test('Models/Pong-v0_PG_2.5e-05.h5')
+    agent.run()
+    #agent.test('Models/Pong-v0_PG_2.5e-05.h5')
