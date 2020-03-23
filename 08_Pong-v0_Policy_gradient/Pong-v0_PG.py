@@ -226,6 +226,6 @@ if __name__ == "__main__":
     #env_name = 'Pong-v0'
     env_name = 'PongDeterministic-v4'
     agent = PGAgent(env_name)
-    #agent.run()
-    agent.test('Models/PongDeterministic-v4_PG_2.5e-05.h5')
+    agent.run()
+    #agent.test('Models/PongDeterministic-v4_PG_2.5e-05.h5')
     #agent.test('Models/Pong-v0_PG_2.5e-05.h5')
