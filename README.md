@@ -1,6 +1,7 @@
 # Reinforcement Learning Tutorials:
 
-(11_Pong-v0_PPO/gameplay.gif)(11_Pong-v0_PPO/gameplay_CNN.gif)
+![PPO agent](11_Pong-v0_PPO/gameplay.gif)
+![PPO CNN agent](11_Pong-v0_PPO/gameplay_CNN.gif)
 
 1. [Deep Q Learning tutorial (DQN)](https://pylessons.com/CartPole-reinforcement-learning/)
 
