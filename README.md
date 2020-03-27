@@ -18,6 +18,6 @@
 
 9. [Introduction to RL Advanced Actor Critic algorythm (A2C)](https://pylessons.com/A2C-reinforcement-learning/)
 
-10. Introduction to RL Asynchronous Advanced Actor Critic algorythm (A3C)
+10. [Introduction to RL Asynchronous Advanced Actor Critic algorythm (A3C)](https://pylessons.com/A3C-reinforcement-learning/)
 
-11. Introduction to RL Proximal Policy Optimization algorythm (PPO)
+11. [Introduction to RL Proximal Policy Optimization algorythm (PPO)](https://pylessons.com/PPO-reinforcement-learning/)
