@@ -25,6 +25,5 @@ PPO and PPO_CNN agents playing Pong-v0 game:<br>
 10. [Introduction to RL Asynchronous Advanced Actor Critic algorythm (A3C)](https://pylessons.com/A3C-reinforcement-learning/)
 
 11. [Introduction to RL Proximal Policy Optimization algorythm (PPO)](https://pylessons.com/PPO-reinforcement-learning/)
-![Training Curve](11_Pong-v0_PPO/Pong-v0_APPO_0.0001_RMSprop.png)
-
+PPO Pong-v0 Learning curve:
 <img src="11_Pong-v0_PPO/Pong-v0_APPO_0.0001_RMSprop.png" data-canonical-src="11_Pong-v0_PPO/Pong-v0_APPO_0.0001_RMSprop.png" width="500" height="300" />
