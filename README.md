@@ -27,4 +27,4 @@ PPO and PPO_CNN agents playing Pong-v0 game:<br>
 11. [Introduction to RL Proximal Policy Optimization algorythm (PPO)](https://pylessons.com/PPO-reinforcement-learning/)
 ![Training Curve](11_Pong-v0_PPO/Pong-v0_APPO_0.0001_RMSprop.png)
 
-<img src="11_Pong-v0_PPO/Pong-v0_APPO_0.0001_RMSprop.png" data-canonical-src="11_Pong-v0_PPO/Pong-v0_APPO_0.0001_RMSprop.png" width="200" height="400" />
+<img src="11_Pong-v0_PPO/Pong-v0_APPO_0.0001_RMSprop.png" data-canonical-src="11_Pong-v0_PPO/Pong-v0_APPO_0.0001_RMSprop.png" width="500" height="300" />
