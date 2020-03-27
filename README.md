@@ -14,9 +14,9 @@
 
 7. [A.I. learns to play Pong with DQN](https://pylessons.com/DQN-PONG/)
 
-8. Introduction to RL Policy Gradient (PG or REINFORCE)
+8. [Introduction to RL Policy Gradient (PG or REINFORCE)](https://pylessons.com/Beyond-DQN/)
 
-9. Introduction to RL Advanced Actor Critic algorythm (A2C)
+9. [Introduction to RL Advanced Actor Critic algorythm (A2C)](https://pylessons.com/A2C-reinforcement-learning/)
 
 10. Introduction to RL Asynchronous Advanced Actor Critic algorythm (A3C)
 
