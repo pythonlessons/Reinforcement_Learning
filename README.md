@@ -1,6 +1,6 @@
 # Reinforcement Learning Tutorials:
 
-PPO and PPO_CNN agents playing Pong-v0 game
+PPO and PPO_CNN agents playing Pong-v0 game:<br>
 ![PPO agent](11_Pong-v0_PPO/gameplay.gif)
 ![PPO CNN agent](11_Pong-v0_PPO/gameplay_CNN.gif)
 
