@@ -3,7 +3,7 @@
 
 import os
 #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 import random
 import gym
 import pylab
@@ -255,7 +255,11 @@ class A3CAgent:
         for t in threads:
             time.sleep(2)
             t.start()
-
+            
+        for t in threads:
+            time.sleep(10)
+            t.join()
+            
     def train_threading(self, agent, env, thread):
         global graph
         with graph.as_default():
@@ -318,5 +322,5 @@ if __name__ == "__main__":
     env_name = 'Pong-v0'
     agent = A3CAgent(env_name)
     #agent.run() # use as A2C
-    agent.train(n_threads=5) # use as A3C
-    #agent.test('Models/Pong-v0_A3C_2.5e-05_Actor.h5', '')
+    #agent.train(n_threads=5) # use as A3C
+    agent.test('Models/Pong-v0_A3C_2.5e-05_Actor.h5', '')
