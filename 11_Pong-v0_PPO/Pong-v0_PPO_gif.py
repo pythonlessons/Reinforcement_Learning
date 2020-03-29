@@ -285,6 +285,10 @@ class PPOAgent:
             time.sleep(2)
             t.start()
 
+        for t in threads:
+            time.sleep(10)
+            t.join()
+            
     def train_threading(self, agent, env, thread):
         global graph
         with graph.as_default():
