@@ -1,5 +1,7 @@
 # Reinforcement Learning Tutorials:
 
+2020-10-07 added support for Tensorflow 2.3.1
+
 PPO and PPO_CNN agents playing Pong-v0 game:<br>
 ![PPO agent](11_Pong-v0_PPO/gameplay.gif)
 ![PPO CNN agent](11_Pong-v0_PPO/gameplay_CNN.gif)
