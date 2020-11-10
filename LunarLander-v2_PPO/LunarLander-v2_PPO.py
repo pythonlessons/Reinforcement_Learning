@@ -450,9 +450,8 @@ class PPOAgent:
 
 if __name__ == "__main__":
     env_name = 'LunarLander-v2'
-    #env_name = 'CartPole-v1'
     agent = PPOAgent(env_name)
-    #agent.run() # train as PPO, train every epesode
+    agent.run() # train as PPO, train every epesode
     #agent.run_batch() # train as PPO, train every batch, trains better
     #agent.run_multiprocesses(num_worker = 8)  # train PPO multiprocessed (fastest)
-    agent.test()
+    #agent.test()
