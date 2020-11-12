@@ -20,7 +20,7 @@ from tensorboardX import SummaryWriter
 #tf.config.experimental_run_functions_eagerly(True) # used for debuging and development
 tf.compat.v1.disable_eager_execution() # usually using this for fastest performance
 from tensorflow.keras.models import Model, load_model
-from tensorflow.keras.layers import Input, Dense, Lambda, Add, Conv2D, Flatten
+from tensorflow.keras.layers import Input, Dense
 from tensorflow.keras.optimizers import Adam, RMSprop
 from tensorflow.keras import backend as K
 import copy
