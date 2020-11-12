@@ -266,7 +266,7 @@ class PPOAgent:
             pylab.ylabel('Score', fontsize=18)
             pylab.xlabel('Steps', fontsize=18)
             try:
-                pylab.grid()
+                pylab.grid(True)
                 pylab.savefig(self.env_name+".png")
             except OSError:
                 pass
