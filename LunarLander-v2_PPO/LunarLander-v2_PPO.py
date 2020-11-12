@@ -321,6 +321,7 @@ class PPOAgent:
 
             if self.episode >= self.EPISODES:
                 break
+        self.env.close()
 
     def run_batch(self): # train every self.Training_batch episodes
         state = self.env.reset()
@@ -358,7 +359,9 @@ class PPOAgent:
             self.replay(states, actions, rewards, predictions, dones, next_states)
             if self.episode >= self.EPISODES:
                 break
+        self.env.close()  
 
+        
     def run_multiprocesses(self, num_worker = 4):
         works, parent_conns, child_conns = [], [], []
         for idx in range(num_worker):
