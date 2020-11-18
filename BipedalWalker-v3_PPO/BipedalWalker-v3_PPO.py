@@ -140,13 +140,10 @@ class PPOAgent:
         self.env = gym.make(env_name)
         self.action_size = self.env.action_space.shape[0]
         self.state_size = self.env.observation_space.shape
-        self.high = self.env.observation_space.high
-        self.low = self.env.observation_space.low
         self.EPISODES = 200000 # total episodes to train through all environments
         self.episode = 0 # used to track the episodes total count of episodes played through all thread environments
         self.max_average = 0 # when average score is above 0 model will be saved
         self.lr = 0.00025
-        self.keep_running_thread = True
         self.epochs = 10 # training epochs
         self.shuffle = True
         self.Training_batch = 512
@@ -167,18 +164,21 @@ class PPOAgent:
         self.Critic_name = f"{self.env_name}_PPO_Critic.h5"
         #self.load() # uncomment to continue training from old weights
 
+        # do not change bellow
+        self.log_std = -0.5 * np.ones(self.action_size, dtype=np.float32)
+        self.std = np.exp(self.log_std)
+
 
     def act(self, state):
         # Use the network to predict the next action to take, using the model
         pred = self.Actor.predict(state)
 
-        log_std = -0.5 * np.ones(self.action_size, dtype=np.float32)
-        std = np.exp(log_std)
-        action = pred + np.random.normal(size=self.action_size) * std
-        action = np.clip(action, self.low, self.high)
-        logp_t = self.gaussian_likelihood(action, pred, log_std)
+        action = pred + np.random.normal(size=pred.shape) * self.std
+        action = np.clip(action, -1, 1) # -1 and 1 are boundaries of tanh
+        
+        logp_t = self.gaussian_likelihood(action, pred, self.log_std)
 
-        return action[0], logp_t[0]
+        return action, logp_t
 
     def gaussian_likelihood(self, action, pred, log_std):
         pre_sum = -0.5 * (((action-pred)/(np.exp(log_std)+1e-8))**2 + 2*log_std + np.log(2*np.pi)) 
@@ -305,17 +305,15 @@ class PPOAgent:
                 self.env.render()
                 # Actor picks an action
                 action, logp_t = self.act(state)
-                #action = np.clip(action, -1, 1)
-                #print(action)
                 # Retrieve new state, reward, and whether the state is terminal
-                next_state, reward, done, _ = self.env.step(action)
+                next_state, reward, done, _ = self.env.step(action[0])
                 # Memorize (state, next_states, action, reward, done, logp_ts) for training
                 states.append(state)
                 next_states.append(np.reshape(next_state, [1, self.state_size[0]]))
                 actions.append(action)
                 rewards.append(reward)
                 dones.append(done)
-                logp_ts.append(logp_t)
+                logp_ts.append(logp_t[0])
                 # Update current state shape
                 state = np.reshape(next_state, [1, self.state_size[0]])
                 score += reward
@@ -359,15 +357,9 @@ class PPOAgent:
         for worker_id, parent_conn in enumerate(parent_conns):
             state[worker_id] = parent_conn.recv()
 
-        log_std = -0.5 * np.ones(self.action_size, dtype=np.float32)
-        std = np.exp(log_std)
         while self.episode < self.EPISODES:
-            predictions_list = self.Actor.predict(np.reshape(state, [num_worker, self.state_size[0]]))
-        
-            action = predictions_list + np.random.normal(size=predictions_list.shape) * std
-            action = np.clip(action, self.low, self.high)
-            
-            logp_pi = self.gaussian_likelihood(action, predictions_list, log_std)
+            # get batch of action's and log_pi's
+            action, logp_pi = self.act(np.reshape(state, [num_worker, self.state_size[0]]))
             
             for worker_id, parent_conn in enumerate(parent_conns):
                 parent_conn.send(action[worker_id])
@@ -438,5 +430,5 @@ if __name__ == "__main__":
     env_name = 'BipedalWalker-v3'
     agent = PPOAgent(env_name)
     #agent.run_batch() # train as PPO
-    #agent.run_multiprocesses(num_worker = 8)  # train PPO multiprocessed (fastest)
+    #agent.run_multiprocesses(num_worker = 2)  # train PPO multiprocessed (fastest)
     agent.test()
