@@ -52,8 +52,8 @@ class Environment(Process):
         self.child_conn.send(state)
         while True:
             action = self.child_conn.recv()
-            if self.is_render and self.env_idx == 0:
-                self.env.render()
+            #if self.is_render and self.env_idx == 0:
+                #self.env.render()
 
             state, reward, done, info = self.env.step(action)
             state = np.reshape(state, [1, self.state_size])
@@ -173,8 +173,9 @@ class PPOAgent:
         # Use the network to predict the next action to take, using the model
         pred = self.Actor.predict(state)
 
-        action = pred + np.random.normal(size=pred.shape) * self.std
-        action = np.clip(action, -1, 1) # -1 and 1 are boundaries of tanh
+        low, high = -1.0, 1.0 # -1 and 1 are boundaries of tanh
+        action = pred + np.random.uniform(low, high, size=pred.shape) * self.std
+        action = np.clip(action, low, high)
         
         logp_t = self.gaussian_likelihood(action, pred, self.log_std)
 
@@ -413,7 +414,7 @@ class PPOAgent:
             done = False
             score = 0
             while not done:
-                #self.env.render()
+                self.env.render()
                 action = self.Actor.predict(state)[0]
                 state, reward, done, _ = self.env.step(action)
                 state = np.reshape(state, [1, self.state_size[0]])
@@ -430,5 +431,5 @@ if __name__ == "__main__":
     env_name = 'BipedalWalker-v3'
     agent = PPOAgent(env_name)
     #agent.run_batch() # train as PPO
-    #agent.run_multiprocesses(num_worker = 2)  # train PPO multiprocessed (fastest)
+    #agent.run_multiprocesses(num_worker = 16)  # train PPO multiprocessed (fastest)
     agent.test()
