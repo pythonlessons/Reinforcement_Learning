@@ -182,6 +182,7 @@ class PPOAgent:
         return action, logp_t
 
     def gaussian_likelihood(self, action, pred, log_std):
+        # https://github.com/hill-a/stable-baselines/blob/master/stable_baselines/sac/policies.py
         pre_sum = -0.5 * (((action-pred)/(np.exp(log_std)+1e-8))**2 + 2*log_std + np.log(2*np.pi)) 
         return np.sum(pre_sum, axis=1)
 
