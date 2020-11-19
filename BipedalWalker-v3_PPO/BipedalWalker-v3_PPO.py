@@ -5,7 +5,7 @@
 #   Created date: 2020-10-18
 #   Website     : https://pylessons.com/
 #   GitHub      : https://github.com/pythonlessons/Reinforcement_Learning
-#   Description : BipedalWalker-v3 PPO continious agent
+#   Description : BipedalWalker-v3 PPO continuous agent
 #   TensorFlow  : 2.3.1
 #
 #================================================================
