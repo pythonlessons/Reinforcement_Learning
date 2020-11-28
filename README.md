@@ -35,6 +35,8 @@ PPO and PPO_CNN agents playing Pong-v0 game:<br>
 11. [Introduction to RL Proximal Policy Optimization algorythm (PPO)](https://pylessons.com/PPO-reinforcement-learning/)
 
 12. [Let’s code from scratch a discrete Reinforcement Learning rocket landing agent! (PPO)](https://pylessons.com/LunarLander-v2-PPO/)
+
+13. [Continuous Proximal Policy Optimization Tutorial with OpenAI gym environment! (PPO)](https://pylessons.com/BipedalWalker-v3-PPO/)
 <br><br>
 PPO Pong-v0 Learning curve:
 <img src="11_Pong-v0_PPO/Pong-v0_APPO_0.0001_RMSprop.png" data-canonical-src="11_Pong-v0_PPO/Pong-v0_APPO_0.0001_RMSprop.png" width="500" height="300" />
