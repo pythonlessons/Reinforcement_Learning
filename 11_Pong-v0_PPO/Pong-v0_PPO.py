@@ -1,195 +1,161 @@
-# Tutorial by www.pylessons.com
-# Tutorial written for - Tensorflow 1.15, Keras 2.2.4
+# %% [code]
+#!usr/bin/env python3
+#-*- coding: utf-8 -*-
+# The bellow code is based in the code from "https://pylessons.com/PPO-reinforcement-learning/"
 
+!pip install gym[atari] # Necessary to install the enviroment when using kaggle's kernel
+
+# %% [code]
+import tensorflow as tf
+import keras as k
+print(tf.__version__)
+print(k.__version__)
+
+# %% [code]
+tf.test.is_gpu_available() # Check if GPU is available. Very good for find errors
+
+# %% [code]
 import os
-#os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
-import random
+import cv2
 import gym
+import random
 import pylab
 import numpy as np
 from keras.models import Model, load_model
-from keras.layers import Input, Dense, Lambda, Add, Conv2D, Flatten
+from keras.layers import Conv2D, MaxPool2D, Flatten, Input, Dense, Dropout
 from keras.optimizers import Adam, RMSprop
 from keras import backend as K
-import cv2
-
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 import threading
 from threading import Thread, Lock
 import time
 
-config = tf.ConfigProto()
-config.gpu_options.allow_growth = True # tells cuda not to use as much VRAM as it wants (as we nneed extra ram for all the other processes)
-sess = tf.Session(config=config)
-set_session(sess)
-K.set_session(sess)
-graph = tf.get_default_graph()
+from numba import cuda # Release GPU memory
 
-def OurModel(input_shape, action_space, lr):
-    X_input = Input(input_shape)
+K.clear_session() # reset the graphs and sessions
+config = tf.compat.v1.ConfigProto(allow_soft_placement=True, log_device_placement=True)
+# config.gpu_options.allow_growth = True
+# config.gpu_options.per_process_gpu_memory_fraction = 0.9
+sess = tf.compat.v1.Session(config=config, graph=tf.compat.v1.get_default_graph())
+sess.as_default()
 
-    #X = Conv2D(32, 8, strides=(4, 4),padding="valid", activation="elu", data_format="channels_first", input_shape=input_shape)(X_input)
-    #X = Conv2D(64, 4, strides=(2, 2),padding="valid", activation="elu", data_format="channels_first")(X)
-    #X = Conv2D(64, 3, strides=(1, 1),padding="valid", activation="elu", data_format="channels_first")(X)
-    X = Flatten(input_shape=input_shape)(X_input)
+# %% [code]
+# Constants
+STACK_SIZE = 4
+FRAME_SIZE = (80,80)
+MAX_EPISODES = 2000
+BATCH_SIZE = 1000   # each one is a time step, not a episode. Change it if you have a GPU
+STATE_SIZE = (STACK_SIZE, *FRAME_SIZE)
 
-    X = Dense(512, activation="elu", kernel_initializer='he_uniform')(X)
-    #X = Dense(256, activation="elu", kernel_initializer='he_uniform')(X)
-    #X = Dense(64, activation="elu", kernel_initializer='he_uniform')(X)
-
-    action = Dense(action_space, activation="softmax", kernel_initializer='he_uniform')(X)
-    value = Dense(1, activation='linear', kernel_initializer='he_uniform')(X)
-
-    def ppo_loss(y_true, y_pred):
-        # Defined in https://arxiv.org/abs/1707.06347
-        advantages, prediction_picks, actions = y_true[:, :1], y_true[:, 1:1+action_space], y_true[:, 1+action_space:]
-        LOSS_CLIPPING = 0.2
-        ENTROPY_LOSS = 5e-3
-
-        prob = y_pred * actions
-        old_prob = actions * prediction_picks
-        r = prob/(old_prob + 1e-10)
-        p1 = r * advantages
-        p2 = K.clip(r, min_value=1 - LOSS_CLIPPING, max_value=1 + LOSS_CLIPPING) * advantages
-        loss =  -K.mean(K.minimum(p1, p2) + ENTROPY_LOSS * -(prob * K.log(prob + 1e-10)))
-
-        return loss
-        
-    Actor = Model(inputs = X_input, outputs = action)
-    Actor.compile(loss=ppo_loss, optimizer=RMSprop(lr=lr))
-
-    Critic = Model(inputs = X_input, outputs = value)
-    Critic.compile(loss='mse', optimizer=RMSprop(lr=lr))
-
-    return Actor, Critic
-
-class PPOAgent:
-    # PPO Main Optimization Algorithm
+# %% [code]
+class PGAgent(object):
     def __init__(self, env_name):
-        # Initialization
-        # Environment and PPO parameters
-        self.env_name = env_name       
+        self.env_name = env_name
         self.env = gym.make(env_name)
+        self.state_size = STATE_SIZE
         self.action_size = self.env.action_space.n
-        self.EPISODES, self.episode, self.max_average = 10000, 0, -21.0 # specific for pong
-        self.lock = Lock()
-        self.lr = 0.0001
-
-        self.ROWS = 80
-        self.COLS = 80
-        self.REM_STEP = 4
-        self.EPOCHS = 10
-
-        # Instantiate plot memory
+        self.lr = 0.000025
+        self.gamma = 0.99
+        self.epochs = 10
+        self.max_average = -21.0 # First max_average Specific for Pong
         self.scores, self.episodes, self.average = [], [], []
+        self.actor, self.critic = self.build_model()
+        self.keep_running_thread = True
+    
+        self.save_path = 'models'
+        self.path = 'PPO_env:{}_lr:{}'.format(self.env, self.lr)
+        self.actor_name = os.path.join(self.save_path, self.path + '_actor')
+        self.critic_name = os.path.join(self.save_path, self.path + '_critic')
+        self.check_or_create_save_path()
 
-        self.Save_Path = 'Models'
-        self.state_size = (self.REM_STEP, self.ROWS, self.COLS)
+        self.episode = 0 # used to track the episodes total count of episodes played through all environments
+        self.lock = Lock() # lock all to update parameters without other thread interruption
         
-        if not os.path.exists(self.Save_Path): os.makedirs(self.Save_Path)
-        self.path = '{}_APPO_{}'.format(self.env_name, self.lr)
-        self.Model_name = os.path.join(self.Save_Path, self.path)
-
-        # Create Actor-Critic network model
-        self.Actor, self.Critic = OurModel(input_shape=self.state_size, action_space = self.action_size, lr=self.lr)
-
-        self.Actor._make_predict_function()
-        self.Critic._make_predict_function()
-
-        global graph
-        graph = tf.get_default_graph()
-
-    def act(self, state):
-        # Use the network to predict the next action to take, using the model
-        prediction = self.Actor.predict(state)[0]
-        action = np.random.choice(self.action_size, p=prediction)
-        return action, prediction
-
-    def discount_rewards(self, reward):
-        # Compute the gamma-discounted rewards over an episode
-        gamma = 0.99    # discount rate
-        running_add = 0
-        discounted_r = np.zeros_like(reward)
-        for i in reversed(range(0,len(reward))):
-            if reward[i] != 0: # reset the sum, since this was a game boundary (pong specific!)
-                running_add = 0
-            running_add = running_add * gamma + reward[i]
-            discounted_r[i] = running_add
-
-        discounted_r -= np.mean(discounted_r) # normalizing the result
-        discounted_r /= np.std(discounted_r) # divide by standard deviation
-        return discounted_r
-
-    def replay(self, states, actions, rewards, predictions):
-        # reshape memory to appropriate shape for training
-        states = np.vstack(states)
-        actions = np.vstack(actions)
-        predictions = np.vstack(predictions)
-
-        # Compute discounted rewards
-        discounted_r = np.vstack(self.discount_rewards(rewards))
-
-        # Get Critic network predictions 
-        values = self.Critic.predict(states)
-        # Compute advantages
-        advantages = discounted_r - values
-
-        '''
-        pylab.plot(discounted_r,'-')
-        pylab.plot(advantages,'.')
-        ax=pylab.gca()
-        ax.grid(True)
-        pylab.show()
-        '''
-        # stack everything to numpy array
-        y_true = np.hstack([advantages, predictions, actions])
+        # threaded predict function
+        # Initialize the graphs before using them in threads to avoid errros message
+        self.actor._make_predict_function()
+        self.actor._make_train_function()
+        self.critic._make_predict_function()
+        self.critic._make_train_function()
         
-        # training Actor and Critic networks
-        self.Actor.fit(states, y_true, epochs=self.EPOCHS, verbose=0, shuffle=True, batch_size=len(rewards))
-        self.Critic.fit(states, discounted_r, epochs=self.EPOCHS, verbose=0, shuffle=True, batch_size=len(rewards))
- 
-    def load(self, Actor_name, Critic_name):
-        self.Actor = load_model(Actor_name, compile=False)
-        #self.Critic = load_model(Critic_name, compile=False)
+        self.session = tf.compat.v1.keras.backend.get_session()
+        self.graph = tf.compat.v1.get_default_graph()    
+        self.graph.finalize()   # graph is not thread-safe, so you need to finilize it... Don't use gloabal graphs with thread
 
-    def save(self):
-        self.Actor.save(self.Model_name + '_Actor.h5')
-        #self.Critic.save(self.Model_name + '_Critic.h5')
 
-    pylab.figure(figsize=(18, 9))
-    def PlotModel(self, score, episode):
+    def build_model(self):
+#         actor = Sequential()
+        input_x = (Input(self.state_size))
+        x = Flatten(input_shape=self.state_size)(input_x)
+        x = Dense(512, activation='elu', kernel_initializer='he_uniform')(x)
+        
+        action = Dense(self.action_size, activation='softmax', kernel_initializer='he_uniform')(x)
+        value = Dense(1, activation='linear', kernel_initializer='he_uniform')(x)
+
+        def ppo_loss(y_true, y_pred):
+            # Defined in https://arxiv.org/abs/1707.06347
+            advantages, prediction_picks, actions = y_true[:,:1], y_true[:,1:1+self.action_size], y_true[:,1+self.action_size:]
+            LOSS_CLIPPING = 0.2
+            ENTROPY_LOSS = 5e-3
+
+            prob = y_pred * actions
+            old_prob = actions * prediction_picks
+            r = prob / (old_prob + 1e-10)
+            p1 = r * advantages
+            p2 = K.clip(r, min_value=1 - LOSS_CLIPPING, max_value=1+LOSS_CLIPPING) * advantages
+            loss = -K.mean(K.minimum(p1, p2) + ENTROPY_LOSS* -(prob * K.log(prob + 1e-10)))
+            
+            return loss
+
+        actor = Model(inputs=input_x, outputs=action)
+        critic = Model(inputs=input_x, outputs=value)
+
+        actor.compile(loss=ppo_loss, optimizer=RMSprop(lr=self.lr))
+        critic.compile(loss='mse', optimizer=RMSprop(lr=self.lr))
+
+        return actor, critic
+
+    def calculate_average(self, score):
         self.scores.append(score)
-        self.episodes.append(episode)
         self.average.append(sum(self.scores[-50:]) / len(self.scores[-50:]))
-        if str(episode)[-2:] == "00":# much faster than episode % 100
-            pylab.plot(self.episodes, self.scores, 'b')
-            pylab.plot(self.episodes, self.average, 'r')
-            pylab.ylabel('Score', fontsize=18)
-            pylab.xlabel('Steps', fontsize=18)
-            try:
-                pylab.savefig(self.path+".png")
-            except OSError:
-                pass
 
         return self.average[-1]
+    
+    def save(self):
+        self.actor.save(self.actor_name + '.h5')
+        self.critic.save(self.critic_name + '.h5')
+    
+    def load(self):
+        self.actor.load_weights(self.actor_name + '.h5')
+        self.critic.load_weights(self.critic_name + '.h5')
 
-    def imshow(self, image, rem_step=0):
-        cv2.imshow("cartpole"+str(rem_step), image[rem_step,...])
-        if cv2.waitKey(25) & 0xFF == ord("q"):
-            cv2.destroyAllWindows()
-            return
+    def check_or_create_save_path(self):
+        if not os.path.exists(self.save_path): os.makedirs(self.save_path)
 
-    def GetImage(self, frame, image_memory):
-        if image_memory.shape == (1,*self.state_size):
+    def reset(self, env):
+        image_memory = np.zeros(self.state_size)
+        frame = env.reset()
+        for x in range(STACK_SIZE):
+            state = self.stack_frames(frame, image_memory)
+
+        return state
+    
+    def step(self, action, env, image_memory):
+        next_state, reward, done, _ = env.step(action)
+        next_state = self.stack_frames(next_state, image_memory)
+
+        return next_state, reward, done
+    
+    def stack_frames(self, frame, image_memory):
+        if image_memory.shape == (1, *self.state_size):
             image_memory = np.squeeze(image_memory)
 
         # croping frame to 80x80 size
         frame_cropped = frame[35:195:2, ::2,:]
-        if frame_cropped.shape[0] != self.COLS or frame_cropped.shape[1] != self.ROWS:
+        if frame_cropped.shape[0] != 80 or frame_cropped.shape[1] != 80:
             # OpenCV resize function 
-            frame_cropped = cv2.resize(frame, (self.COLS, self.ROWS), interpolation=cv2.INTER_CUBIC)
+            frame_cropped = cv2.resize(frame, (80, 80), interpolation=cv2.INTER_CUBIC)
         
         # converting to RGB (numpy way)
         frame_rgb = 0.299*frame_cropped[:,:,0] + 0.587*frame_cropped[:,:,1] + 0.114*frame_cropped[:,:,2]
@@ -210,146 +176,240 @@ class PPOAgent:
         image_memory[0,:,:] = new_frame
 
         # show image frame   
-        #self.imshow(image_memory,0)
-        #self.imshow(image_memory,1)
-        #self.imshow(image_memory,2)
-        #self.imshow(image_memory,3)
-        
+        #self.imshow(self.image_memory,0)
+        #self.imshow(self.image_memory,1)
+        #self.imshow(self.image_memory,2)
+        #self.imshow(self.image_memory,3)
         return np.expand_dims(image_memory, axis=0)
 
-    def reset(self, env):
-        image_memory = np.zeros(self.state_size)
-        frame = env.reset()
-        for i in range(self.REM_STEP):
-            state = self.GetImage(frame, image_memory)
-        return state
+    def discount_and_normalize_reward(self, reward):
+        # apply the discount and normalize it to avoid big variability os rewards
+        discounted_reward = np.zeros_like(reward)
+        cummulative = 0.0
 
-    def step(self, action, env, image_memory):
-        next_state, reward, done, info = env.step(action)
-        next_state = self.GetImage(next_state, image_memory)
-        return next_state, reward, done, info
+        for i in reversed(range(len(reward))):
+            if reward[i] != 0:
+                cummulative = 0.0       # reset the summation
+            cummulative = cummulative * self.gamma + reward[i]
+            discounted_reward[i] = cummulative
+
+        mean = np.mean(discounted_reward)
+        std = np.std(discounted_reward)
+        discounted_reward = (discounted_reward - mean)/std
+        
+        return discounted_reward
     
+    def act(self, state):
+        """ example:
+        pred = np.array([0.05, 0.85, 0.1])
+        action_size = 3
+        np.random.choice(a, p=pred)
+        result>>> 1, because it have the highest probability to be taken
+        """
+        prediction = self.actor.predict(state)[0]
+        action = np.random.choice(self.action_size, p=prediction)
+
+        return action, prediction
+
+    pylab.figure(figsize=(18,9))
+    def plot_model(self, score, episode):
+        if str(episode)[-2:] == '00': # much faster than episode % 100
+            pylab.plot(self.episodes, self.scores, 'b')
+            pylab.plot(self.episodes, self.average, 'r')
+            pylab.ylabel('Scores', fontsize=18)
+            pylab.xlabel('Steps', fontsize=18)
+            try:
+                pylab.savefig(self.path + '.png')
+            except OSError:
+                pass
+
+    def replay(self, states, actions, rewards, predictions):
+        #reshape memory to appropriate shape for trainning
+        states = np.vstack(states)
+        actions = np.vstack(actions)
+        predictions = np.vstack(predictions)
+
+        # Compute discounted rewards
+        discounted_r = np.vstack(self.discount_and_normalize_reward(rewards))
+        
+        # get critic network predictions
+        values = self.critic.predict(states)
+        # comput advantages
+        advantages = discounted_r - values
+
+        # stack everything to numpy array
+        # pack all advantages, predictions and actions to y_true and when they are received
+        # in custom loss function we unpack it
+        y_true = np.hstack([advantages, predictions, actions])
+
+        # training actor and critic networks
+        self.actor.fit(states, y_true, epochs=self.epochs, verbose=0, shuffle=True, batch_size=len(rewards))
+        self.critic.fit(states, discounted_r, epochs=self.epochs, verbose=0, shuffle=True, batch_size=len(rewards))
+
     def run(self):
-        for e in range(self.EPISODES):
+        for episode in range(MAX_EPISODES):
             state = self.reset(self.env)
-            done, score, SAVING = False, 0, ''
-            # Instantiate or reset games memory
+            score, saving = 0, ''
+
+            # Instantiate games memory
             states, actions, rewards, predictions = [], [], [], []
-            while not done:
-                #self.env.render()
+            while True:
+                # self.env.render()
                 # Actor picks an action
                 action, prediction = self.act(state)
-                # Retrieve new state, reward, and whether the state is terminal
-                next_state, reward, done, _ = self.step(action, self.env, state)
-                # Memorize (state, action, reward) for training
+                next_state, reward, done = self.step(action, self.env, state)
+                
+                # self.memorize(stacked_state, action, reward)
                 states.append(state)
-                action_onehot = np.zeros([self.action_size])
-                action_onehot[action] = 1
-                actions.append(action_onehot)
+                action_p = np.zeros([self.action_size])
+                action_p[action] = 1
+                actions.append(action_p)
                 rewards.append(reward)
                 predictions.append(prediction)
-                # Update current state
+
+                #update current state
                 state = next_state
                 score += reward
+
                 if done:
-                    average = self.PlotModel(score, e)
-                    # saving best models
+                    average = self.calculate_average(score)
+                    self.plot_model(score, episode)
                     if average >= self.max_average:
+                        saving = 'SAVING'
                         self.max_average = average
                         self.save()
-                        SAVING = "SAVING"
                     else:
-                        SAVING = ""
-                    print("episode: {}/{}, score: {}, average: {:.2f} {}".format(e, self.EPISODES, score, average, SAVING))
+                        saving = ''
 
-                    self.replay(states, actions, rewards, predictions)
-                    
+                    print('Episode: {}/{} Score: {} Average: {:.2f} {}'
+                    .format(episode, MAX_EPISODES, score, average, saving))
+    
+                    self.replay(states, actions, rewards, predictions)    
+                    break
+
         self.env.close()
 
+    
     def train(self, n_threads):
         self.env.close()
-        # Instantiate one environment per thread
-        envs = [gym.make(self.env_name) for i in range(n_threads)]
+        # instatiate one environment per thread
+        envs = [gym.make(self.env_name) for _ in range(n_threads)]
 
         # Create threads
         threads = [threading.Thread(
-                target=self.train_threading,
+                target=self.train_treading,
                 daemon=True,
-                args=(self,
-                    envs[i],
-                    i)) for i in range(n_threads)]
-
+                args=(self, envs[i], 
+                i)) for i in range(n_threads)]
+        
         for t in threads:
             time.sleep(2)
             t.start()
-
-        for t in threads:
-            time.sleep(10)
-            t.join()
+        
+        try: 
+            for t in threads:
+                time.sleep(4)
+                t.join()
+                
+        except (KeyboardInterrupt, SystemExit):
+                # Daemon seem doesn't work with kaggle, so it's necessary switch a global flag to 
+                # finish the threads using a safe mode. In order hand, all resources allocated
+                # by threads will keept used and maybe the own threads don't finish them.
+                # That's ocorred when I used kaggle, when I tried finish just the main thread the 
+                # other threads keept runing even using True Daemon. So mt solution was use a flag
+                print("########### Exiting all threads...It may take a while ###########")
+                self.keep_running_thread = False
+                for t in threads:
+                    t.join()
+                print('All threads are finished....')
+                
+                # Release resources allocated during training
+                self.session.close()
+                
+                # Release GPU memory
+                device = cuda.get_current_device()
+                device.reset()
             
-    def train_threading(self, agent, env, thread):
-        global graph
-        with graph.as_default():
-            while self.episode < self.EPISODES:
-                # Reset episode
-                score, done, SAVING = 0, False, ''
-                state = self.reset(env)
-                # Instantiate or reset games memory
-                states, actions, rewards, predictions = [], [], [], []
-                while not done:
-                    action, prediction = agent.act(state)
-                    next_state, reward, done, _ = self.step(action, env, state)
 
-                    states.append(state)
-                    action_onehot = np.zeros([self.action_size])
-                    action_onehot[action] = 1
-                    actions.append(action_onehot)
-                    rewards.append(reward)
-                    predictions.append(prediction)
-                    
-                    score += reward
-                    state = next_state
+    def train_treading(self, agent, env, thread):
+        try:
+            with self.session.as_default():
+                while self.episode < MAX_EPISODES:
+                    # Reset episodes
+                    score, saving = 0, ''
+                    state = self.reset(env)
 
-                self.lock.acquire()
-                self.replay(states, actions, rewards, predictions)
-                self.lock.release()
+                    # Instantiate or reset games memory
+                    states, actions, rewards, predictions = [], [], [], []
+                    while True:
+                        # The raise inside the threads turn possible break a lot of while at once,
+                        # and the try/except enable doesn't generate a exceptoion error message
+                        if not self.keep_running_thread: raise KeyboardInterrupt
+                        action, prediction = agent.act(state)
+                        next_state, reward, done = self.step(action, env, state)
 
-                # Update episode count
-                with self.lock:
-                    average = self.PlotModel(score, self.episode)
-                    # saving best models
-                    if average >= self.max_average:
-                        self.max_average = average
-                        self.save()
-                        SAVING = "SAVING"
-                    else:
-                        SAVING = ""
-                    print("episode: {}/{}, thread: {}, score: {}, average: {:.2f} {}".format(self.episode, self.EPISODES, thread, score, average, SAVING))
-                    if(self.episode < self.EPISODES):
-                        self.episode += 1
-            env.close()            
+                        states.append(state)
+                        action_p = np.zeros([self.action_size])
+                        action_p[action] = 1
+                        actions.append(action_p)
+                        rewards.append(reward)
+                        predictions.append(prediction)
 
-    def test(self, Actor_name, Critic_name):
-        self.load(Actor_name, Critic_name)
+                        score += reward
+                        state = next_state
+
+                        if done:
+                            break
+
+                    self.lock.acquire()
+                    self.replay(states, actions, rewards, predictions)
+                    self.lock.release()
+
+                    # Update episode count
+                    with self.lock:
+                        average = self.calculate_average(score)
+                        self.plot_model(score, self.episode)
+                        # saving best models
+                        if average >= self.max_average:
+                            self.max_average = average
+                            self.save()
+                            saving = 'SAVING'
+
+                        else:
+                            saving = ''
+                        print('Episode: {}/{}, Thread: {}, Score: {}, Average: {:.2f} {}'
+                        .format(self.episode, MAX_EPISODES, thread, score, average, saving))
+
+                        if (self.episode < MAX_EPISODES):
+                            self.episode += 1
+                env.close()
+        except KeyboardInterrupt:
+            print('Thread {} finished.'.format(thread))
+
+    def test(self, actor_name, critic_name):
+        self.load()
         for e in range(100):
             state = self.reset(self.env)
-            done = False
             score = 0
-            while not done:
-                self.env.render()
-                action = np.argmax(self.Actor.predict(state))
-                state, reward, done, _ = self.step(action, self.env, state)
+
+            while True:
+                action = np.argmax(self.actor.predict(state))
+                state, reward, done = self.step(action, self.env, state)
                 score += reward
                 if done:
                     print("episode: {}/{}, score: {}".format(e, self.EPISODES, score))
                     break
+            
         self.env.close()
 
-if __name__ == "__main__":
-    #env_name = 'PongDeterministic-v4'
-    env_name = 'Pong-v0'
-    agent = PPOAgent(env_name)
-    #agent.run() # use as PPO
-    #agent.train(n_threads=5) # use as APPO
-    #agent.test('Models/Pong-v0_APPO_0.0001_Actor.h5', '')
-    agent.test('Models/Pong-v0_APPO_0.0001_Actor_CNN.h5', '')
+# %% [code]
+# That's a good way to automate the choice of number of workers
+import multiprocessing
+n_workers = multiprocessing.cpu_count()
+print(n_workers)
+
+# %% [code]
+env_name = 'Pong-v0' 
+agent = PGAgent(env_name)
+agent.train(n_threads = n_workers)
+# agent.test()
